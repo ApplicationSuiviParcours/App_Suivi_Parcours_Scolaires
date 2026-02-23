@@ -9,7 +9,7 @@
         <div class="absolute -top-24 -right-24 w-96 h-96 bg-white rounded-full mix-blend-overlay filter blur-3xl animate-pulse"></div>
         <div class="absolute -bottom-24 -left-24 w-96 h-96 bg-indigo-300 rounded-full mix-blend-overlay filter blur-3xl animate-pulse delay-1000"></div>
     </div>
-    
+
     <!-- Particules flottantes -->
     <div class="absolute inset-0 overflow-hidden">
         @for($i = 1; $i <= 4; $i++)
@@ -51,7 +51,7 @@
                 </p>
             </div>
             <div class="mt-6 md:mt-0 flex justify-center md:justify-end space-x-3 animate-fade-in-right">
-                <a href="{{ route('admin.bulletins.edit', $bulletin) }}" 
+                <a href="{{ route('admin.bulletins.edit', $bulletin) }}"
                    class="group relative inline-flex items-center px-5 py-2.5 bg-yellow-500 hover:bg-yellow-600 text-white font-medium rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-xl overflow-hidden">
                     <span class="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-300"></span>
                     <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -59,7 +59,7 @@
                     </svg>
                     Modifier
                 </a>
-                <a href="{{ route('admin.bulletins.print', $bulletin) }}" 
+                <a href="{{ route('admin.bulletins.print', $bulletin) }}"
                    class="group relative inline-flex items-center px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white font-medium rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-xl overflow-hidden"
                    target="_blank">
                     <span class="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-300"></span>
@@ -68,7 +68,7 @@
                     </svg>
                     Imprimer
                 </a>
-                <a href="{{ route('admin.bulletins.index') }}" 
+                <a href="{{ route('admin.bulletins.index') }}"
                    class="group relative inline-flex items-center px-5 py-2.5 bg-white/10 backdrop-blur-lg hover:bg-white/20 text-white font-medium rounded-xl transition-all duration-300 transform hover:scale-105 border border-white/20">
                     <svg class="w-5 h-5 mr-2 transform group-hover:-translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
@@ -151,7 +151,7 @@
                         </svg>
                         <div>
                             <p class="text-xs text-gray-500">Date du bulletin</p>
-                            <p class="font-medium text-gray-800">{{ $bulletin->date_bulletin->format('d/m/Y') }}</p>
+                            <p class="font-medium text-gray-800">{{ $bulletin->date_bulletin ?->format('d/m/Y') ?? 'N/A' }}</p>
                         </div>
                     </div>
                 </div>
@@ -232,18 +232,18 @@
                             @foreach($notesParMatiere as $matiereId => $data)
                                 @php
                                     // Vérifier le format des données
-                                    $matiereNom = isset($data['matiere_nom']) ? $data['matiere_nom'] : 
-                                                 (isset($data['matiere']) && is_object($data['matiere']) ? $data['matiere']->nom : 
+                                    $matiereNom = isset($data['matiere_nom']) ? $data['matiere_nom'] :
+                                                 (isset($data['matiere']) && is_object($data['matiere']) ? $data['matiere']->nom :
                                                  (isset($data['matiere']) && is_array($data['matiere']) ? ($data['matiere']['nom'] ?? 'Matière inconnue') : 'Matière inconnue'));
-                                    
-                                    $matiereCode = isset($data['matiere_code']) ? $data['matiere_code'] : 
-                                                  (isset($data['matiere']) && is_object($data['matiere']) ? ($data['matiere']->code ?? '') : 
+
+                                    $matiereCode = isset($data['matiere_code']) ? $data['matiere_code'] :
+                                                  (isset($data['matiere']) && is_object($data['matiere']) ? ($data['matiere']->code ?? '') :
                                                   (isset($data['matiere']) && is_array($data['matiere']) ? ($data['matiere']['code'] ?? '') : ''));
-                                    
+
                                     $notes = isset($data['notes']) ? $data['notes'] : [];
-                                    $moyenne = isset($data['moyenne']) ? $data['moyenne'] : 
+                                    $moyenne = isset($data['moyenne']) ? $data['moyenne'] :
                                               (isset($data['moyenne_ponderee']) ? $data['moyenne_ponderee'] : 0);
-                                    $coefficient = isset($data['coefficient_total']) ? $data['coefficient_total'] : 
+                                    $coefficient = isset($data['coefficient_total']) ? $data['coefficient_total'] :
                                                    (isset($data['coefficient']) ? $data['coefficient'] : 1);
                                 @endphp
                                 <tr class="hover:bg-gray-50 transition-colors duration-200">
@@ -259,7 +259,7 @@
                                         <div class="flex flex-wrap gap-2">
                                             @forelse($notes as $note)
                                                 @php
-                                                    $noteValue = is_object($note) ? ($note->note ?? $note->valeur ?? 0) : 
+                                                    $noteValue = is_object($note) ? ($note->note ?? $note->valeur ?? 0) :
                                                                 (is_array($note) ? ($note['note'] ?? $note['valeur'] ?? 0) : 0);
                                                 @endphp
                                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $noteValue >= 10 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
@@ -325,11 +325,11 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
                     <span class="text-gray-500">Créé le</span>
-                    <p class="font-medium text-gray-800">{{ $bulletin->created_at->format('d/m/Y à H:i') }}</p>
+                    <p class="font-medium text-gray-800">{{ $bulletin->created_at ?->format('d/m/Y à H:i') ?? 'N/A' }}</p>
                 </div>
                 <div>
                     <span class="text-gray-500">Dernière mise à jour</span>
-                    <p class="font-medium text-gray-800">{{ $bulletin->updated_at->format('d/m/Y à H:i') }}</p>
+                    <p class="font-medium text-gray-800">{{ $bulletin->updated_at ?->format('d/m/Y à H:i') ?? 'N/A' }}</p>
                 </div>
             </div>
         </div>
@@ -343,27 +343,27 @@
         0%, 100% { transform: translate(0, 0); }
         50% { transform: translate(10px, -10px); }
     }
-    
+
     @keyframes float-2 {
         0%, 100% { transform: translate(0, 0); }
         50% { transform: translate(-15px, 5px); }
     }
-    
+
     @keyframes float-3 {
         0%, 100% { transform: translate(0, 0) scale(1); }
         50% { transform: translate(8px, 8px) scale(1.1); }
     }
-    
+
     @keyframes float-4 {
         0%, 100% { transform: translate(0, 0); }
         50% { transform: translate(-12px, -8px); }
     }
-    
+
     .animate-float-1 { animation: float-1 8s ease-in-out infinite; }
     .animate-float-2 { animation: float-2 10s ease-in-out infinite; }
     .animate-float-3 { animation: float-3 12s ease-in-out infinite; }
     .animate-float-4 { animation: float-4 9s ease-in-out infinite; }
-    
+
     @keyframes fadeInUp {
         from {
             opacity: 0;
@@ -374,7 +374,7 @@
             transform: translateY(0);
         }
     }
-    
+
     @keyframes fadeInRight {
         from {
             opacity: 0;
@@ -385,15 +385,15 @@
             transform: translateX(0);
         }
     }
-    
+
     .animate-fade-in-up {
         animation: fadeInUp 0.8s ease-out forwards;
     }
-    
+
     .animate-fade-in-right {
         animation: fadeInRight 0.8s ease-out forwards;
     }
-    
+
     .animation-delay-200 {
         animation-delay: 200ms;
         opacity: 0;

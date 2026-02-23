@@ -102,10 +102,10 @@ class EleveAdminController extends Controller
     {
         // Récupérer l'année en cours
         $anneeActuelle = date('Y');
-        
+
         // Récupérer le dernier élève créé dans l'année pour générer le numéro
         $dernierEleve = Eleve::whereYear('created_at', $anneeActuelle)->latest()->first();
-        
+
         if ($dernierEleve && $dernierEleve->matricule) {
             // Extraire le numéro du dernier matricule (format: 2025D0123)
             $dernierNumero = intval(substr($dernierEleve->matricule, -4));
@@ -176,7 +176,7 @@ class EleveAdminController extends Controller
             // ✅ CORRECTION: Génération correcte du matricule
             $anneeActuelle = date('Y');
             $premiereLettreNom = strtoupper(substr(trim($request->nom), 0, 1));
-            
+
             // Vérifier que la première lettre est valide (A-Z)
             if (!preg_match('/[A-Z]/', $premiereLettreNom)) {
                 $premiereLettreNom = 'X'; // Lettre par défaut
@@ -187,7 +187,7 @@ class EleveAdminController extends Controller
                 ->where('matricule', 'like', $anneeActuelle . '%')
                 ->orderBy('matricule', 'desc')
                 ->first();
-            
+
             if ($dernierEleve && $dernierEleve->matricule) {
                 $dernierNumero = intval(substr($dernierEleve->matricule, -4));
                 $nouveauNumero = str_pad($dernierNumero + 1, 4, '0', STR_PAD_LEFT);
@@ -238,7 +238,7 @@ class EleveAdminController extends Controller
             if ($request->filled('create_user') && $request->create_user) {
                 // Générer l'email ou utiliser celui de l'élève
                 $email = $eleve->email ?? $eleve->matricule . '@eleve.local';
-                
+
                 // Vérifier si l'email existe déjà dans la table users
                 if (User::where('email', $email)->exists()) {
                     // Utiliser un email alternatif avec un suffixe numérique
@@ -324,7 +324,7 @@ class EleveAdminController extends Controller
         $eleve->load(['inscriptions' => function($q) {
             $q->with('classe')->latest();
         }]);
-        
+
         $classes = Classe::with('anneeScolaire')->get();
         $anneeScolaireActive = AnneeScolaire::where('active', true)->first();
         if (!$anneeScolaireActive) {
@@ -402,8 +402,18 @@ class EleveAdminController extends Controller
                 if ($request->filled('password')) {
                     $eleve->user->password = Hash::make($request->password);
                 }
-                if ($eleve->email) {
-                    $eleve->user->email = $eleve->email;
+                if ($eleve->email && $eleve->email !== $eleve->user->email) {
+                    // Check if email already exists for another user
+                    $existingUser = User::where('email', $eleve->email)
+                        ->where('id', '!=', $eleve->user->id)
+                        ->first();
+
+                    if ($existingUser) {
+                        // Keep the old email instead of blocking the update
+                        session()->flash('warning', 'L\'email n\'a pas été modifié car il est déjà utilisé par un autre utilisateur.');
+                    } else {
+                        $eleve->user->email = $eleve->email;
+                    }
                 }
                 $eleve->user->name = $eleve->prenom . ' ' . $eleve->nom;
                 $eleve->user->save();
@@ -431,20 +441,20 @@ class EleveAdminController extends Controller
         try {
             // Supprimer d'abord les inscriptions
             $eleve->inscriptions()->delete();
-            
+
             // Détacher les parents
             $eleve->parents()->detach();
-            
+
             // Supprimer l'utilisateur associé si existe
             if ($eleve->user) {
                 $eleve->user->delete();
             }
-            
+
             // Supprimer la photo si elle existe
             if ($eleve->photo) {
                 Storage::disk('public')->delete($eleve->photo);
             }
-            
+
             // Enfin, supprimer l'élève
             $eleve->delete();
 
@@ -599,7 +609,7 @@ class EleveAdminController extends Controller
         try {
             // Générer l'email ou utiliser celui de l'élève
             $email = $eleve->email ?? $eleve->matricule . '@eleve.local';
-            
+
             // Vérifier si l'email existe déjà dans la table users
             if (User::where('email', $email)->exists()) {
                 // Utiliser un email alternatif avec un suffixe numérique
