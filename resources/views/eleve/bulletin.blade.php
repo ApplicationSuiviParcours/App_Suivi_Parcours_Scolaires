@@ -207,11 +207,12 @@
                                             {{ number_format($bulletin->moyenne_classe, 2) }}
                                         @else
                                             @php
-                                                // Vérifier si des notes existent
-                                                if($bulletin->notesBulletin && $bulletin->notesBulletin->count() > 0) {
+                                                // Utiliser notesDirectes au lieu de notesBulletin
+                                                $notesDirectes = $bulletin->notesDirectes ?? collect([]);
+                                                if($notesDirectes->count() > 0) {
                                                     $totalNotes = 0;
                                                     $compteur = 0;
-                                                    foreach($bulletin->notesBulletin as $note) {
+                                                    foreach($notesDirectes as $note) {
                                                         $totalNotes += $note->note;
                                                         $compteur++;
                                                     }
@@ -244,10 +245,12 @@
                                         $moyenneEleve = $bulletin->moyenne_generale ?? 0;
                                         $moyenneClasse = $bulletin->moyenne_classe ?? 0;
                                         
-                                        if($moyenneClasse == 0 && $bulletin->notesBulletin && $bulletin->notesBulletin->count() > 0) {
+                                        // Utiliser notesDirectes au lieu de notesBulletin
+                                        $notesDirectes = $bulletin->notesDirectes ?? collect([]);
+                                        if($moyenneClasse == 0 && $notesDirectes->count() > 0) {
                                             $totalNotes = 0;
                                             $compteur = 0;
-                                            foreach($bulletin->notesBulletin as $note) {
+                                            foreach($notesDirectes as $note) {
                                                 $totalNotes += $note->note;
                                                 $compteur++;
                                             }
@@ -289,7 +292,7 @@
                     </div>
                     @endif
 
-                    <!-- Notes par matière avec la table pivot -->
+                    <!-- Notes par matière - VERSION CORRIGÉE -->
                     <h4 class="flex items-center mb-4 text-lg font-semibold text-gray-900">
                         <svg class="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
@@ -297,17 +300,22 @@
                         Détail des notes par matière
                     </h4>
 
-                    @if($bulletin->notesBulletin && $bulletin->notesBulletin->count() > 0)
+                    @php
+                        // Utiliser notesDirectes au lieu de notesBulletin
+                        $notesDirectes = $bulletin->notesDirectes ?? collect([]);
+                    @endphp
+
+                    @if($notesDirectes->count() > 0)
                         @php
                             // Regrouper les notes par matière
                             $notesParMatiere = [];
                             $totalPoints = 0;
                             $totalCoeffs = 0;
                             
-                            foreach($bulletin->notesBulletin as $note) {
+                            foreach($notesDirectes as $note) {
                                 if($note->evaluation && $note->evaluation->matiere) {
                                     $matiereId = $note->evaluation->matiere->id;
-                                    $coefficient = $note->pivot->coefficient ?? $note->evaluation->coefficient ?? 1;
+                                    $coefficient = $note->evaluation->coefficient ?? 1;
                                     
                                     if(!isset($notesParMatiere[$matiereId])) {
                                         $notesParMatiere[$matiereId] = [

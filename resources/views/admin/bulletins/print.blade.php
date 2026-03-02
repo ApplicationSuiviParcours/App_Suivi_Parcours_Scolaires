@@ -358,7 +358,7 @@
                 </div>
                 <div class="info-item">
                     <span class="info-label">Date</span>
-                    <span class="info-value">{{ $bulletin->date_bulletin->format('d/m/Y') }}</span>
+                    <span class="info-value">{{ $bulletin->date_bulletin ?->format('d/m/Y') ?? 'N/A' }}</span>
                 </div>
             </div>
         </div>

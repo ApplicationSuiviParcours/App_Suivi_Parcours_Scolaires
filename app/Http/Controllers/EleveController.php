@@ -88,6 +88,13 @@ class EleveController extends Controller
      */
     public function dashboard()
     {
+        $user = Auth::user();
+        
+        // Debug: Vérifier l'utilisateur et la relation
+        Log::info('EleveController dashboard - User ID: ' . $user->id);
+        Log::info('EleveController dashboard - User name: ' . $user->name);
+        Log::info('EleveController dashboard - Eleve relation exists: ' . ($user->eleve ? 'yes' : 'no'));
+        
         $eleve = $this->getEleveConnecte();
 
         if (!$eleve) {
@@ -374,7 +381,7 @@ class EleveController extends Controller
     }
 
     /**
-     * Affiche le bulletin de l'élève connecté - VERSION CORRIGÉE AVEC NOTESBULLETIN
+     * Affiche le bulletin de l'élève connecté - VERSION CORRIGÉE
      */
     public function monBulletin(Request $request)
     {
@@ -385,18 +392,9 @@ class EleveController extends Controller
                 ->with('error', 'Aucun profil élève associé à ce compte.');
         }
 
-        // MODIFICATION: Ne pas charger 'classe' directement
-        // $eleve->load(['classe']); // À supprimer
-
-        // Récupérer les bulletins avec les notes via la table pivot
+        // Récupérer les bulletins
         $query = Bulletin::where('eleve_id', $eleve->id)
-            ->with([
-                'classe', 
-                'anneeScolaire',
-                'notesBulletin' => function($q) {
-                    $q->with(['evaluation.matiere']);
-                }
-            ]);
+            ->with(['classe', 'anneeScolaire']);
 
         if ($request->filled('periode')) {
             $query->where('periode', $request->periode);
@@ -410,6 +408,21 @@ class EleveController extends Controller
             ->paginate(10)
             ->withQueryString();
 
+        // Pour chaque bulletin, récupérer les notes directement depuis les évaluations
+        foreach ($bulletins as $bulletin) {
+            $notes = Note::where('eleve_id', $bulletin->eleve_id)
+                ->whereHas('evaluation', function($q) use ($bulletin) {
+                    $q->where('annee_scolaire_id', $bulletin->annee_scolaire_id)
+                      ->where('classe_id', $bulletin->classe_id)
+                      ->where('periode', $bulletin->periode);
+                })
+                ->with(['evaluation.matiere', 'evaluation.classe'])
+                ->get();
+            
+            // Stocker les notes dans une propriété temporaire pour la vue
+            $bulletin->setAttribute('notesDirectes', $notes);
+        }
+
         $anneesScolaires = AnneeScolaire::orderBy('nom', 'desc')->get();
         $periodes = ['trimestre1', 'trimestre2', 'trimestre3', 'semestre1', 'semestre2'];
 
@@ -417,7 +430,8 @@ class EleveController extends Controller
     }
 
     /**
-     * Affiche les détails d'un bulletin spécifique - VERSION AVEC TABLE PIVOT
+     * Affiche les détails d'un bulletin spécifique - VERSION CORRIGÉE
+     * Récupère les notes directement depuis les évaluations
      */
     public function detailBulletin(Bulletin $bulletin)
     {
@@ -428,55 +442,70 @@ class EleveController extends Controller
                 ->with('error', 'Vous n\'avez pas accès à ce bulletin.');
         }
 
-        // Charger le bulletin avec ses relations
+        // Charger le bulletin avec ses relations de base
         $bulletin->load([
             'classe', 
-            'anneeScolaire',
-            'notesBulletin' => function($q) {
-                $q->with(['evaluation.matiere']);
-            }
+            'anneeScolaire'
         ]);
 
-        // Calculer les moyennes par matière à partir des notes du bulletin
-        $notesParMatiere = [];
-        foreach ($bulletin->notesBulletin as $note) {
-            if ($note->evaluation && $note->evaluation->matiere) {
-                $matiereId = $note->evaluation->matiere->id;
-                
-                if (!isset($notesParMatiere[$matiereId])) {
-                    $notesParMatiere[$matiereId] = [
-                        'matiere' => $note->evaluation->matiere,
-                        'notes' => collect(),
-                        'total' => 0,
-                        'count' => 0,
-                        'moyenne' => 0,
-                        'coefficient_total' => 0
-                    ];
-                }
-                
-                // Utiliser le coefficient du pivot ou celui de l'évaluation
-                $coefficient = $note->pivot->coefficient ?? $note->evaluation->coefficient ?? 1;
-                
-                $notesParMatiere[$matiereId]['notes']->push($note);
-                $notesParMatiere[$matiereId]['total'] += $note->note * $coefficient;
-                $notesParMatiere[$matiereId]['coefficient_total'] += $coefficient;
-                $notesParMatiere[$matiereId]['count']++;
-            }
-        }
+        // Récupérer les notes de l'élève pour la période du bulletin directement depuis les évaluations
+        // On cherche les notes de l'élève pour la même année scolaire, classe et période que le bulletin
+        $notes = Note::where('eleve_id', $bulletin->eleve_id)
+            ->whereHas('evaluation', function($q) use ($bulletin) {
+                $q->where('annee_scolaire_id', $bulletin->annee_scolaire_id)
+                  ->where('classe_id', $bulletin->classe_id)
+                  ->where('periode', $bulletin->periode);
+            })
+            ->with(['evaluation.matiere', 'evaluation.classe'])
+            ->get();
 
-        // Calculer la moyenne par matière
-        foreach ($notesParMatiere as &$data) {
-            if ($data['coefficient_total'] > 0) {
-                $data['moyenne'] = round($data['total'] / $data['coefficient_total'], 2);
+        // Calculer les moyennes par matière à partir des notes récupérées
+        $notesParMatiere = [];
+        
+        // Grouper par matière en utilisant l'ID de la matière depuis l'évaluation
+        $groupedNotes = $notes->groupBy(function($note) {
+            return $note->evaluation?->matiere?->id ?? 'inconnu';
+        });
+        
+        foreach ($groupedNotes as $matiereId => $matiereNotes) {
+            if ($matiereId === 'inconnu' || $matiereId === null) {
+                continue;
             }
+            
+            $firstNote = $matiereNotes->first();
+            $matiere = $firstNote?->evaluation?->matiere;
+            
+            if (!$matiere) {
+                continue;
+            }
+            
+            $totalPoints = 0;
+            $totalCoeffs = 0;
+            
+            foreach ($matiereNotes as $note) {
+                $coeff = $note->evaluation?->coefficient ?? 1;
+                $totalPoints += $note->note * $coeff;
+                $totalCoeffs += $coeff;
+            }
+            
+            $notesParMatiere[$matiereId] = [
+                'matiere' => $matiere,
+                'matiere_nom' => $matiere->nom,
+                'matiere_code' => $matiere->code ?? '',
+                'notes' => $matiereNotes,
+                'coefficient' => $totalCoeffs,
+                'coefficient_total' => $totalCoeffs,
+                'moyenne' => $totalCoeffs > 0 ? round($totalPoints / $totalCoeffs, 2) : 0,
+                'moyenne_ponderee' => $totalCoeffs > 0 ? round($totalPoints / $totalCoeffs, 2) : 0,
+            ];
         }
 
         // Calculer la moyenne générale pondérée
         $totalPoints = 0;
         $totalCoeffs = 0;
         
-        foreach ($bulletin->notesBulletin as $note) {
-            $coeff = $note->pivot->coefficient ?? $note->evaluation->coefficient ?? 1;
+        foreach ($notes as $note) {
+            $coeff = $note->evaluation?->coefficient ?? 1;
             $totalPoints += $note->note * $coeff;
             $totalCoeffs += $coeff;
         }
@@ -770,7 +799,7 @@ class EleveController extends Controller
     }
 
     /**
-     * Exporter un bulletin au format PDF - VERSION AVEC TABLE PIVOT
+     * Exporter un bulletin au format PDF
      */
     public function exportBulletinPdf(Bulletin $bulletin)
     {
@@ -783,38 +812,56 @@ class EleveController extends Controller
 
         $bulletin->load([
             'classe', 
-            'anneeScolaire',
-            'notesBulletin' => function($q) {
-                $q->with(['evaluation.matiere']);
-            }
+            'anneeScolaire'
         ]);
+
+        // Récupérer les notes directement depuis les évaluations
+        $notes = Note::where('eleve_id', $bulletin->eleve_id)
+            ->whereHas('evaluation', function($q) use ($bulletin) {
+                $q->where('annee_scolaire_id', $bulletin->annee_scolaire_id)
+                  ->where('classe_id', $bulletin->classe_id)
+                  ->where('periode', $bulletin->periode);
+            })
+            ->with(['evaluation.matiere', 'evaluation.classe'])
+            ->get();
 
         // Calculer les moyennes par matière
         $notesParMatiere = [];
-        foreach ($bulletin->notesBulletin as $note) {
-            if ($note->evaluation && $note->evaluation->matiere) {
-                $matiereId = $note->evaluation->matiere->id;
-                if (!isset($notesParMatiere[$matiereId])) {
-                    $notesParMatiere[$matiereId] = [
-                        'matiere' => $note->evaluation->matiere,
-                        'notes' => collect(),
-                        'total' => 0,
-                        'count' => 0
-                    ];
-                }
-                $notesParMatiere[$matiereId]['notes']->push($note);
-                $notesParMatiere[$matiereId]['total'] += $note->note;
-                $notesParMatiere[$matiereId]['count']++;
+        $groupedNotes = $notes->groupBy(function($note) {
+            return $note->evaluation?->matiere?->id ?? 'inconnu';
+        });
+        
+        foreach ($groupedNotes as $matiereId => $matiereNotes) {
+            if ($matiereId === 'inconnu' || $matiereId === null) {
+                continue;
             }
+            
+            $firstNote = $matiereNotes->first();
+            $matiere = $firstNote?->evaluation?->matiere;
+            
+            if (!$matiere) {
+                continue;
+            }
+            
+            $totalPoints = 0;
+            $totalCoeffs = 0;
+            
+            foreach ($matiereNotes as $note) {
+                $coeff = $note->evaluation?->coefficient ?? 1;
+                $totalPoints += $note->note * $coeff;
+                $totalCoeffs += $coeff;
+            }
+            
+            $notesParMatiere[$matiereId] = [
+                'matiere' => $matiere,
+                'notes' => $matiereNotes,
+                'total' => $totalPoints,
+                'coefficient_total' => $totalCoeffs,
+                'moyenne' => $totalCoeffs > 0 ? round($totalPoints / $totalCoeffs, 2) : 0,
+            ];
         }
 
-        foreach ($notesParMatiere as &$data) {
-            if ($data['count'] > 0) {
-                $data['moyenne'] = round($data['total'] / $data['count'], 2);
-            }
-        }
-
-        $moyenneGenerale = $bulletin->notesBulletin->avg('note');
+        $moyenneGenerale = $notes->avg('note');
 
         $pdf = Pdf::loadView('eleve.exports.bulletin-pdf', compact(
             'bulletin', 

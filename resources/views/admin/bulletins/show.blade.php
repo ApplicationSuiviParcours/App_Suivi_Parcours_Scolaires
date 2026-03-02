@@ -256,15 +256,35 @@
                                         @endif
                                     </td>
                                     <td class="px-6 py-4">
-                                        <div class="flex flex-wrap gap-2">
+                                        <div class="space-y-2">
                                             @forelse($notes as $note)
                                                 @php
                                                     $noteValue = is_object($note) ? ($note->note ?? $note->valeur ?? 0) :
                                                                 (is_array($note) ? ($note['note'] ?? $note['valeur'] ?? 0) : 0);
+                                                    $evaluation = is_object($note) ? ($note->evaluation ?? null) : (is_array($note) ? ($note['evaluation'] ?? null) : null);
+                                                    $evalType = $evaluation ? ($evaluation->type ?? 'Évaluation') : 'Évaluation';
+                                                    $evalNom = $evaluation ? ($evaluation->nom ?? '') : '';
+                                                    $evalDate = $evaluation ? ($evaluation->date_evaluation ?? null) : null;
+                                                    $evalCoeff = $evaluation ? ($evaluation->coefficient ?? 1) : 1;
                                                 @endphp
-                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $noteValue >= 10 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
-                                                    {{ number_format($noteValue, 2) }}
-                                                </span>
+                                                <div class="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                                                    <div class="flex items-center gap-2">
+                                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium {{ $noteValue >= 10 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
+                                                            {{ number_format($noteValue, 2) }}/20
+                                                        </span>
+                                                        <span class="text-xs text-gray-500">
+                                                            ({{ $evalType }})
+                                                        </span>
+                                                    </div>
+                                                    <div class="text-xs text-gray-400">
+                                                        @if($evalNom)
+                                                            <span class="mr-2">{{ $evalNom }}</span>
+                                                        @endif
+                                                        @if($evalDate)
+                                                            <span>{{ $evalDate->format('d/m') }}</span>
+                                                        @endif
+                                                    </div>
+                                                </div>
                                             @empty
                                                 <span class="text-gray-400 text-sm">Aucune note</span>
                                             @endforelse

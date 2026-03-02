@@ -282,11 +282,11 @@
                             <div class="grid grid-cols-2 gap-4 text-sm">
                                 <div>
                                     <span class="text-gray-500">Créé le</span>
-                                    <p class="font-medium text-gray-800">{{ $bulletin->created_at->format('d/m/Y à H:i') }}</p>
+                                    <p class="font-medium text-gray-800">{{ $bulletin->created_at ?->format('d/m/Y à H:i') ?? 'N/A' }}</p>
                                 </div>
                                 <div>
                                     <span class="text-gray-500">Dernière modification</span>
-                                    <p class="font-medium text-gray-800">{{ $bulletin->updated_at->format('d/m/Y à H:i') }}</p>
+                                    <p class="font-medium text-gray-800">{{ $bulletin->updated_at ?->format('d/m/Y à H:i') ?? 'N/A' }}</p>
                                 </div>
                             </div>
                         </div>

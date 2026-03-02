@@ -84,7 +84,7 @@ class ParentController extends Controller
         $parent = $this->getParentConnecte();
 
         if (!$parent) {
-            return redirect()->route('welcome')
+            return redirect('/')
                 ->with('error', 'Aucun profil parent associé à votre compte.');
         }
 
@@ -136,7 +136,7 @@ class ParentController extends Controller
                     ->limit(5)
                     ->get(),
                 'dernier_bulletin' => Bulletin::where('eleve_id', $enfant->id)
-                    ->with(['periode', 'anneeScolaire'])
+                    ->with(['anneeScolaire'])
                     ->latest()
                     ->first(),
                 'moyenne_generale' => $this->calculerMoyenneEleve($enfant->id),
@@ -154,7 +154,7 @@ class ParentController extends Controller
         $parent = $this->getParentConnecte();
 
         if (!$parent) {
-            return redirect()->route('welcome')
+            return redirect('/')
                 ->with('error', 'Aucun parent associé à ce compte.');
         }
 
@@ -864,7 +864,7 @@ class ParentController extends Controller
         $parent = $this->getParentConnecte();
 
         if (!$parent) {
-            return redirect()->route('welcome')
+            return redirect('/')
                 ->with('error', 'Aucun parent associé à ce compte.');
         }
 

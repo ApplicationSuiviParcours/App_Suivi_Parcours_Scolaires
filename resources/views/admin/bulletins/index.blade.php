@@ -111,7 +111,7 @@
                 </div>
             </div>
             <div class="mt-4 flex items-center text-sm text-gray-600">
-                <span class="text-green-600 font-medium">{{ $stats['admins'] }}</span>
+                <span class="text-green-600 font-medium">{{ $stats['admis'] ?? 0 }}</span>
                 <span class="mx-2">élèves admis</span>
             </div>
         </div>
@@ -333,7 +333,7 @@
                                 </span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                {{ $bulletin->date_bulletin->format('d/m/Y') }}
+                                {{ $bulletin->date_bulletin ?->format('d/m/Y') ?? 'N/A' }}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center space-x-2">

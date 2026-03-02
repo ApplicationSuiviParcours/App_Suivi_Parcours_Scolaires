@@ -43,8 +43,8 @@ class EnseignantController extends Controller
         $enseignant = $this->getEnseignantConnecte();
 
         if (!$enseignant) {
-            return redirect()->route('home')
-                ->with('error', 'Aucun profil enseignant associé à votre compte.');
+            return redirect('/')
+                ->with('error', 'Aucun profil enseignant associé à votre compte. Veuillez contacter l\'administrateur.');
         }
 
         $classesCount = EnseignantMatiereClasse::where('enseignant_id', $enseignant->id)
@@ -93,7 +93,7 @@ class EnseignantController extends Controller
         $enseignant = $this->getEnseignantConnecte();
 
         if (!$enseignant) {
-            return redirect()->route('home')
+            return redirect('/')
                 ->with('error', 'Aucun profil enseignant associé à votre compte.');
         }
 
@@ -112,7 +112,7 @@ class EnseignantController extends Controller
         $enseignant = $this->getEnseignantConnecte();
 
         if (!$enseignant) {
-            return redirect()->route('home')
+            return redirect('/')
                 ->with('error', 'Aucun profil enseignant associé à votre compte.');
         }
 
@@ -132,7 +132,7 @@ class EnseignantController extends Controller
         $enseignant = $this->getEnseignantConnecte();
 
         if (!$enseignant) {
-            return redirect()->route('home')
+            return redirect('/')
                 ->with('error', 'Aucun profil enseignant associé à votre compte.');
         }
 
@@ -151,7 +151,7 @@ class EnseignantController extends Controller
         $enseignant = $this->getEnseignantConnecte();
 
         if (!$enseignant) {
-            return redirect()->route('home')
+            return redirect('/')
                 ->with('error', 'Aucun profil enseignant associé à votre compte.');
         }
 
@@ -173,7 +173,7 @@ class EnseignantController extends Controller
         $enseignant = $this->getEnseignantConnecte();
 
         if (!$enseignant) {
-            return redirect()->route('home')
+            return redirect('/')
                 ->with('error', 'Aucun profil enseignant associé à votre compte.');
         }
 

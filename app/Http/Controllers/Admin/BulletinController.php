@@ -60,7 +60,7 @@ class BulletinController extends Controller
                 ->pluck('total', 'periode')
                 ->toArray(),
             'moyenne_generale' => round(Bulletin::avg('moyenne_generale') ?? 0, 2),
-            'admins' => Bulletin::where('moyenne_generale', '>=', 10)->count(),
+            'admis' => Bulletin::where('moyenne_generale', '>=', 10)->count(),
         ];
 
         $bulletins = $query->orderBy('date_bulletin', 'desc')
@@ -269,6 +269,57 @@ class BulletinController extends Controller
     }
 
     /**
+     * Display the specified bulletin - DEBUG VERSION
+     */
+    public function showDebug(Bulletin $bulletin)
+    {
+        $bulletin->load([
+            'eleve',
+            'classe',
+            'anneeScolaire'
+        ]);
+
+        // Debug: Afficher les infos du bulletin
+        $debugInfo = [
+            'bulletin_id' => $bulletin->id,
+            'eleve_id' => $bulletin->eleve_id,
+            'classe_id' => $bulletin->classe_id,
+            'annee_scolaire_id' => $bulletin->annee_scolaire_id,
+            'periode' => $bulletin->periode,
+        ];
+
+        // Récupérer les notes avec debug
+        $notes = Note::where('eleve_id', $bulletin->eleve_id)
+            ->whereHas('evaluation', function($q) use ($bulletin) {
+                $q->where('annee_scolaire_id', $bulletin->annee_scolaire_id)
+                  ->where('classe_id', $bulletin->classe_id)
+                  ->where('periode', $bulletin->periode);
+            })
+            ->with(['evaluation.matiere', 'evaluation.classe'])
+            ->get();
+        
+        $debugInfo['notes_count'] = $notes->count();
+        
+        // Afficher les détails de chaque note
+        $notesDetails = [];
+        foreach ($notes as $note) {
+            $notesDetails[] = [
+                'note_id' => $note->id,
+                'note_value' => $note->note,
+                'evaluation_id' => $note->evaluation_id,
+                'evaluation_periode' => $note->evaluation?->periode,
+                'evaluation_classe_id' => $note->evaluation?->classe_id,
+                'matiere_id' => $note->evaluation?->matiere_id,
+                'matiere_nom' => $note->evaluation?->matiere?->nom,
+            ];
+        }
+        
+        $debugInfo['notes_details'] = $notesDetails;
+
+        return response()->json($debugInfo);
+    }
+
+    /**
      * Display the specified bulletin.
      */
     public function show(Bulletin $bulletin)
@@ -276,19 +327,64 @@ class BulletinController extends Controller
         $bulletin->load([
             'eleve',
             'classe',
-            'anneeScolaire',
-            'notesBulletin' => function($q) {
-                $q->with(['evaluation.matiere'])
-                  ->orderBy('evaluation_id');
-            }
+            'anneeScolaire'
         ]);
 
+        // Récupérer les notes de l'élève pour la période du bulletin directement depuis les évaluations
+        // On cherche les notes de l'élève pour la même année scolaire, classe et période que le bulletin
+        $notes = Note::where('eleve_id', $bulletin->eleve_id)
+            ->whereHas('evaluation', function($q) use ($bulletin) {
+                $q->where('annee_scolaire_id', $bulletin->annee_scolaire_id)
+                  ->where('classe_id', $bulletin->classe_id)
+                  ->where('periode', $bulletin->periode);
+            })
+            ->with(['evaluation.matiere', 'evaluation.classe'])
+            ->get();
+        
         // Organiser les notes par matière
-        $notesParMatiere = $bulletin->moyennes_par_matiere;
+        $notesParMatiere = [];
+        
+        // Grouper par matière en utilisant l'ID de la matière depuis l'évaluation
+        $groupedNotes = $notes->groupBy(function($note) {
+            return $note->evaluation?->matiere?->id ?? 'inconnu';
+        });
+        
+        foreach ($groupedNotes as $matiereId => $matiereNotes) {
+            if ($matiereId === 'inconnu' || $matiereId === null) {
+                continue;
+            }
+            
+            $firstNote = $matiereNotes->first();
+            $matiere = $firstNote?->evaluation?->matiere;
+            
+            if (!$matiere) {
+                continue;
+            }
+            
+            $totalPoints = 0;
+            $totalCoeffs = 0;
+            
+            foreach ($matiereNotes as $note) {
+                $coeff = $note->evaluation?->coefficient ?? 1;
+                $totalPoints += $note->note * $coeff;
+                $totalCoeffs += $coeff;
+            }
+            
+            $notesParMatiere[$matiereId] = [
+                'matiere' => $matiere,
+                'matiere_nom' => $matiere->nom,
+                'matiere_code' => $matiere->code ?? '',
+                'notes' => $matiereNotes,
+                'coefficient' => $totalCoeffs,
+                'coefficient_total' => $totalCoeffs,
+                'moyenne' => $totalCoeffs > 0 ? round($totalPoints / $totalCoeffs, 2) : 0,
+                'moyenne_ponderee' => $totalCoeffs > 0 ? round($totalPoints / $totalCoeffs, 2) : 0,
+            ];
+        }
         
         // Statistiques
         $stats = [
-            'total_notes' => $bulletin->notesBulletin->count(),
+            'total_notes' => $notes->count(),
             'moyenne' => $bulletin->moyenne_generale,
             'rang' => $bulletin->rang,
             'effectif' => $bulletin->effectif_classe,
@@ -385,7 +481,7 @@ class BulletinController extends Controller
         $stats = [
             'total' => Bulletin::count(),
             'moyenne_generale' => round(Bulletin::avg('moyenne_generale') ?? 0, 2),
-            'admins' => Bulletin::where('moyenne_generale', '>=', 10)->count(),
+            'admis' => Bulletin::where('moyenne_generale', '>=', 10)->count(),
             'par_periode' => Bulletin::select('periode', DB::raw('count(*) as total'))
                 ->groupBy('periode')
                 ->get(),
@@ -407,7 +503,7 @@ class BulletinController extends Controller
         return response()->json($bulletins);
     }
 
-        /**
+    /**
      * Imprimer un bulletin
      */
     public function print(Bulletin $bulletin)

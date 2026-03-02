@@ -155,6 +155,7 @@ Route::middleware(['auth', 'role:administrateur'])->group(function () {
     Route::get('/admin/bulletins/generate', [BulletinController::class, 'generate'])->name('admin.bulletins.generate');
     Route::post('/admin/bulletins/generate', [BulletinController::class, 'generateStore'])->name('admin.bulletins.generateStore');
     Route::get('/admin/bulletins/{bulletin}', [BulletinController::class, 'show'])->name('admin.bulletins.show');
+    Route::get('/admin/bulletins/{bulletin}/debug', [BulletinController::class, 'showDebug'])->name('admin.bulletins.debug');
     Route::put('/admin/bulletins/{bulletin}', [BulletinController::class, 'update'])->name('admin.bulletins.update');
     Route::delete('/admin/bulletins/{bulletin}', [BulletinController::class, 'destroy'])->name('admin.bulletins.destroy');
     Route::get('/admin/bulletins/{bulletin}/edit', [BulletinController::class, 'edit'])->name('admin.bulletins.edit');

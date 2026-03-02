@@ -416,7 +416,18 @@ class EleveAdminController extends Controller
                     }
                 }
                 $eleve->user->name = $eleve->prenom . ' ' . $eleve->nom;
-                $eleve->user->save();
+                
+                // FIX: Utiliser save() avec vérification d'erreur pour éviter le duplicate
+                try {
+                    $eleve->user->save();
+                } catch (\Illuminate\Database\QueryException $e) {
+                    // Si erreur de duplicate email, restaurer l'ancien email
+                    if ($e->errorInfo[1] == 1062) { // Code erreur MySQL pour duplicate entry
+                        session()->flash('warning', 'L\'email n\'a pas été modifié car il est déjà utilisé par un autre utilisateur.');
+                    } else {
+                        throw $e;
+                    }
+                }
             }
 
             DB::commit();
