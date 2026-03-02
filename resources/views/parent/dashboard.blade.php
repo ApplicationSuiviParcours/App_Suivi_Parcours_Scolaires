@@ -7,6 +7,19 @@
 @endsection
 
 @section('content')
+@php
+    // Valeurs par défaut pour éviter les erreurs
+    $enfants = $enfants ?? collect([]);
+    $stats = $stats ?? [
+        'total_enfants' => 0,
+        'total_notes' => 0,
+        'total_absences' => 0,
+        'total_bulletins' => 0,
+        'absences_non_justifiees' => 0,
+    ];
+    $donneesEnfants = $donneesEnfants ?? [];
+@endphp
+
 <div class="py-12">
     <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
         
@@ -61,16 +74,14 @@
                     </div>
                 </div>
                 
-                <!-- Alertes absences non justifiées - AVEC VÉRIFICATION D'EXISTENCE -->
-                @if(isset($enfants) && $enfants->count() > 0 && isset($donneesEnfants))
+                <!-- Alertes absences non justifiées -->
+                @if($enfants->count() > 0 && !empty($donneesEnfants))
                     @php
                         $alertes = [];
                         foreach($enfants as $enfant) {
-                            if(isset($donneesEnfants[$enfant->id]['dernieres_absences'])) {
-                                $absencesNonJust = $donneesEnfants[$enfant->id]['dernieres_absences']->where('justifiee', false)->count();
-                                if($absencesNonJust > 0) {
-                                    $alertes[] = "{$enfant->prenom} a {$absencesNonJust} absence(s) non justifiée(s)";
-                                }
+                            if(isset($donneesEnfants[$enfant->id]['absences_non_justifiees']) && 
+                               $donneesEnfants[$enfant->id]['absences_non_justifiees'] > 0) {
+                                $alertes[] = "{$enfant->prenom} a {$donneesEnfants[$enfant->id]['absences_non_justifiees']} absence(s) non justifiée(s)";
                             }
                         }
                     @endphp
@@ -93,7 +104,7 @@
             </div>
         </div>
 
-        <!-- Stats Cards - AVEC VALEURS PAR DÉFAUT -->
+        <!-- Stats Cards -->
         <div class="grid grid-cols-1 gap-6 mb-8 md:grid-cols-2 lg:grid-cols-4">
             <!-- Enfants -->
             <div class="p-6 transition-all duration-500 bg-white border border-gray-100 shadow-xl rounded-2xl hover:shadow-2xl hover:-translate-y-2">
@@ -104,7 +115,7 @@
                             Mes Enfants
                         </p>
                         <p class="mt-2 text-4xl font-bold text-gray-900 animate-count">
-                            {{ isset($stats['total_enfants']) ? $stats['total_enfants'] : 0 }}
+                            {{ $stats['total_enfants'] }}
                         </p>
                     </div>
                     <div class="p-4 shadow-lg bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl animate-float">
@@ -124,7 +135,7 @@
                             Notes
                         </p>
                         <p class="mt-2 text-4xl font-bold text-gray-900 animate-count">
-                            {{ isset($stats['total_notes']) ? $stats['total_notes'] : 0 }}
+                            {{ $stats['total_notes'] }}
                         </p>
                     </div>
                     <div class="p-4 shadow-lg bg-gradient-to-br from-green-500 to-green-600 rounded-xl animate-float animation-delay-200">
@@ -144,9 +155,9 @@
                             Absences
                         </p>
                         <p class="mt-2 text-4xl font-bold text-gray-900 animate-count">
-                            {{ isset($stats['total_absences']) ? $stats['total_absences'] : 0 }}
+                            {{ $stats['total_absences'] }}
                         </p>
-                        @if(isset($stats['absences_non_justifiees']) && $stats['absences_non_justifiees'] > 0)
+                        @if($stats['absences_non_justifiees'] > 0)
                         <p class="text-xs text-red-500">{{ $stats['absences_non_justifiees'] }} non justifiée(s)</p>
                         @endif
                     </div>
@@ -167,7 +178,7 @@
                             Bulletins
                         </p>
                         <p class="mt-2 text-4xl font-bold text-gray-900 animate-count">
-                            {{ isset($stats['total_bulletins']) ? $stats['total_bulletins'] : 0 }}
+                            {{ $stats['total_bulletins'] }}
                         </p>
                     </div>
                     <div class="p-4 shadow-lg bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl animate-float animation-delay-600">
@@ -180,7 +191,7 @@
         </div>
 
         <!-- Message si aucun enfant -->
-        @if(!isset($enfants) || $enfants->count() == 0)
+        @if($enfants->count() == 0)
         <div class="p-12 text-center bg-white shadow-xl rounded-2xl">
             <div class="relative inline-block animate-float">
                 <div class="absolute inset-0 bg-blue-300 rounded-full opacity-50 blur-xl"></div>
@@ -194,12 +205,28 @@
                 Veuillez contacter l'administration.
             </p>
         </div>
-        @endif
-
-        <!-- Liste des enfants avec leurs dernières activités - AVEC VÉRIFICATIONS -->
-        @if(isset($enfants) && $enfants->count() > 0)
+        @else
+        <!-- Liste des enfants avec leurs dernières activités -->
         <div class="grid grid-cols-1 gap-6 mt-8 lg:grid-cols-2">
             @foreach($enfants as $enfant)
+            @php
+                // Récupérer l'inscription active pour obtenir la classe
+                $inscriptionActive = $enfant->inscriptions()
+                    ->where('statut', true)
+                    ->with('classe')
+                    ->first();
+                $classeNom = $inscriptionActive && $inscriptionActive->classe 
+                    ? $inscriptionActive->classe->nom 
+                    : 'Classe non assignée';
+                
+                $enfantDonnees = $donneesEnfants[$enfant->id] ?? [
+                    'dernieres_notes' => collect([]),
+                    'dernieres_absences' => collect([]),
+                    'moyenne_generale' => 0,
+                    'dernier_bulletin' => null,
+                    'absences_non_justifiees' => 0,
+                ];
+            @endphp
             <div class="overflow-hidden transition-all duration-500 transform bg-white border border-gray-100 shadow-xl rounded-2xl hover:shadow-2xl hover:-translate-y-2">
                 <!-- En-tête enfant -->
                 <div class="p-6 bg-gradient-to-r from-blue-600 to-indigo-600">
@@ -214,7 +241,7 @@
                                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
                                     </svg>
-                                    {{ $enfant->classe->nom ?? 'Classe non assignée' }}
+                                    <span>{{ $classeNom }}</span>
                                     @if(isset($enfant->lien_parental))
                                     <span class="ml-2 px-2 py-0.5 text-xs bg-white/20 rounded-full">{{ $enfant->lien_parental }}</span>
                                     @endif
@@ -234,33 +261,26 @@
                     <div class="grid grid-cols-3 gap-2 p-3 mb-4 bg-gray-50 rounded-xl">
                         <div class="text-center">
                             <p class="text-xs text-gray-500">Moyenne</p>
-                            @php 
-                                $moyenne = isset($donneesEnfants[$enfant->id]['moyenne_generale']) ? 
-                                           $donneesEnfants[$enfant->id]['moyenne_generale'] : 0; 
-                            @endphp
-                            <p class="text-lg font-bold {{ $moyenne >= 10 ? 'text-green-600' : 'text-red-600' }}">
-                                {{ number_format($moyenne, 2) }}
+                            <p class="text-lg font-bold {{ $enfantDonnees['moyenne_generale'] >= 10 ? 'text-green-600' : 'text-red-600' }}">
+                                {{ number_format($enfantDonnees['moyenne_generale'], 2) }}
                             </p>
                         </div>
                         <div class="text-center">
                             <p class="text-xs text-gray-500">Notes</p>
                             <p class="text-lg font-bold text-blue-600">
-                                {{ isset($donneesEnfants[$enfant->id]['dernieres_notes']) ? 
-                                   $donneesEnfants[$enfant->id]['dernieres_notes']->count() : 0 }}
+                                {{ $enfantDonnees['dernieres_notes']->count() }}
                             </p>
                         </div>
                         <div class="text-center">
                             <p class="text-xs text-gray-500">Absences</p>
                             <p class="text-lg font-bold text-red-600">
-                                {{ isset($donneesEnfants[$enfant->id]['dernieres_absences']) ? 
-                                   $donneesEnfants[$enfant->id]['dernieres_absences']->count() : 0 }}
+                                {{ $enfantDonnees['dernieres_absences']->count() }}
                             </p>
                         </div>
                     </div>
 
                     <!-- Dernières notes -->
-                    @if(isset($donneesEnfants[$enfant->id]['dernieres_notes']) && 
-                        $donneesEnfants[$enfant->id]['dernieres_notes']->count() > 0)
+                    @if($enfantDonnees['dernieres_notes']->count() > 0)
                     <div class="mb-4">
                         <h5 class="flex items-center mb-2 text-sm font-semibold text-gray-700">
                             <svg class="w-4 h-4 mr-1 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -269,8 +289,8 @@
                             Dernières notes
                         </h5>
                         <div class="space-y-2">
-                            @foreach($donneesEnfants[$enfant->id]['dernieres_notes'] as $note)
-                            <div class="flex items-center justify-between p-2 text-sm bg-gray-50 rounded-lg">
+                            @foreach($enfantDonnees['dernieres_notes'] as $note)
+                            <div class="flex items-center justify-between p-2 text-sm rounded-lg bg-gray-50">
                                 <div class="flex items-center">
                                     <span class="inline-block w-2 h-2 mr-2 bg-green-500 rounded-full"></span>
                                     <span class="text-gray-600">{{ $note->evaluation->matiere->nom ?? 'Matière' }}</span>
@@ -283,8 +303,7 @@
                     @endif
 
                     <!-- Dernières absences -->
-                    @if(isset($donneesEnfants[$enfant->id]['dernieres_absences']) && 
-                        $donneesEnfants[$enfant->id]['dernieres_absences']->count() > 0)
+                    @if($enfantDonnees['dernieres_absences']->count() > 0)
                     <div class="mb-4">
                         <h5 class="flex items-center mb-2 text-sm font-semibold text-gray-700">
                             <svg class="w-4 h-4 mr-1 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -293,11 +312,11 @@
                             Dernières absences
                         </h5>
                         <div class="space-y-2">
-                            @foreach($donneesEnfants[$enfant->id]['dernieres_absences'] as $absence)
-                            <div class="flex items-center justify-between p-2 text-sm bg-gray-50 rounded-lg">
+                            @foreach($enfantDonnees['dernieres_absences'] as $absence)
+                            <div class="flex items-center justify-between p-2 text-sm rounded-lg bg-gray-50">
                                 <div class="flex items-center">
                                     <span class="inline-block w-2 h-2 mr-2 {{ $absence->justifiee ? 'bg-green-500' : 'bg-red-500' }} rounded-full"></span>
-                                    <span class="text-gray-600">{{ $absence->date_absence->format('d/m/Y') }}</span>
+                                    <span class="text-gray-600">{{ \Carbon\Carbon::parse($absence->date_absence)->format('d/m/Y') }}</span>
                                 </div>
                                 <span class="px-2 py-1 text-xs {{ $absence->justifiee ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' }} rounded-full">
                                     {{ $absence->justifiee ? 'Justifiée' : 'Non justifiée' }}
@@ -309,8 +328,8 @@
                     @endif
 
                     <!-- Dernier bulletin -->
-                    @if(isset($donneesEnfants[$enfant->id]['dernier_bulletin']) && $donneesEnfants[$enfant->id]['dernier_bulletin'])
-                    <div class="p-3 border border-purple-100 bg-purple-50 rounded-xl">
+                    @if($enfantDonnees['dernier_bulletin'])
+                    <div class="p-3 mb-4 border border-purple-100 bg-purple-50 rounded-xl">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center">
                                 <svg class="w-4 h-4 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -318,7 +337,7 @@
                                 </svg>
                                 <span class="text-sm text-gray-600">Dernier bulletin:</span>
                             </div>
-                            <span class="text-sm font-medium text-purple-700">{{ $donneesEnfants[$enfant->id]['dernier_bulletin']->periode }}</span>
+                            <span class="text-sm font-medium text-purple-700">{{ $enfantDonnees['dernier_bulletin']->periode }}</span>
                         </div>
                     </div>
                     @endif

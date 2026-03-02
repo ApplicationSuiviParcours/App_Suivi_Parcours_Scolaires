@@ -34,6 +34,7 @@ use App\Http\Controllers\Enseignant\NoteController as EnseignantNoteController;
 
 
 
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -357,14 +358,28 @@ Route::middleware(['auth', 'role:eleve'])->group(function () {
 // ROUTES PARENT
 // ============================================
 Route::middleware(['auth', 'role:parent'])->group(function () {
-    Route::get('/parent/dashboard', [ParentController::class, 'dashboard'])->name('parent.dashboard');
-    Route::get('/parent/mes-enfants', [ParentController::class, 'mesEnfants'])->name('parent.enfants');
-    Route::get('/parent/enfant/{eleve}/notes', [ParentController::class, 'notesEnfant'])->name('parent.enfant.notes');
-    Route::get('/parent/enfant/{eleve}/absences', [ParentController::class, 'absencesEnfant'])->name('parent.enfant.absences');
-    Route::post('/parent/absence/{absence}/justifier', [ParentController::class, 'justifierAbsence'])->name('parent.justifier-absence');
-    Route::get('/parent/enfant/{eleve}/bulletins', [ParentController::class, 'bulletinsEnfant'])->name('parent.enfant.bulletin');
-    Route::get('/parent/enfant/{eleve}/bulletin/{bulletin}', [ParentController::class, 'detailBulletinEnfant'])->name('parent.enfant.bulletin.detail');
-    Route::get('/parent/enfant/{eleve}/bulletin/{bulletin}/telecharger', [ParentController::class, 'telechargerBulletin'])->name('parent.telecharger-bulletin');
+    // Dashboard - remplacé par le nouveau contrôleur
+    Route::get('/parent/dashboard', [App\Http\Controllers\Parent\DashboardController::class, 'index'])->name('parent.dashboard');
+    
+    // Mes enfants - gardé avec l'ancien contrôleur
+    // Route::get('/parent/mes-enfants', [ParentController::class, 'mesEnfants'])->name('parent.enfants');
+    Route::get('parent/mes-enfants', [App\Http\Controllers\Parent\EnfantsController::class, 'mesEnfants'])->name('parent.enfants');
+    
+    // Notes d'un enfant - remplacé par le nouveau contrôleur
+    Route::get('/parent/enfant/{eleve}/notes', [App\Http\Controllers\Parent\NoteController::class, 'index'])->name('parent.enfant.notes');
+    
+    // Absences d'un enfant - remplacé par le nouveau contrôleur
+    Route::get('/parent/enfant/{eleve}/absences', [App\Http\Controllers\Parent\AbsenceController::class, 'index'])->name('parent.enfant.absences');
+    
+    // Justification d'absence - remplacé par le nouveau contrôleur
+    Route::post('/parent/absence/{absence}/justifier', [App\Http\Controllers\Parent\AbsenceController::class, 'justifier'])->name('parent.justifier-absence');
+    
+    // Bulletins d'un enfant - remplacé par le nouveau contrôleur
+    Route::get('/parent/enfant/{eleve}/bulletins', [App\Http\Controllers\Parent\BulletinController::class, 'index'])->name('parent.enfant.bulletin');
+    Route::get('/parent/enfant/{eleve}/bulletin/{bulletin}', [App\Http\Controllers\Parent\BulletinController::class, 'show'])->name('parent.enfant.bulletin.detail');
+    Route::get('/parent/enfant/{eleve}/bulletin/{bulletin}/telecharger', [App\Http\Controllers\Parent\BulletinController::class, 'telecharger'])->name('parent.telecharger-bulletin');
+    
+    // Emploi du temps - gardé avec l'ancien contrôleur
     Route::get('/parent/enfant/{eleve}/emploi-du-temps', [ParentController::class, 'emploiDuTempsEnfant'])->name('parent.enfant.emploi-du-temps');
 });
 

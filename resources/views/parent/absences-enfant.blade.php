@@ -7,6 +7,22 @@
 @endsection
 
 @section('content')
+    @php
+        // Valeurs par défaut pour éviter les erreurs
+        $stats = $stats ?? [
+            'total' => 0,
+            'justifiees' => 0,
+            'non_justifiees' => 0,
+            'mois_courant' => 0
+        ];
+        $absences = $absences ?? collect([]);
+        $matieres = $matieres ?? collect([]);
+        $mois = $mois ?? [
+            1 => 'Janvier', 2 => 'Février', 3 => 'Mars', 4 => 'Avril', 5 => 'Mai', 6 => 'Juin',
+            7 => 'Juillet', 8 => 'Août', 9 => 'Septembre', 10 => 'Octobre', 11 => 'Novembre', 12 => 'Décembre'
+        ];
+    @endphp
+
 <div class="py-12">
     <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
         
@@ -37,7 +53,7 @@
                                 </span>
                             </div>
                             <div class="absolute w-4 h-4 bg-green-400 border-2 border-red-600 rounded-full -bottom-1 -right-1 animate-pulse"></div>
-                            @if($stats['non_justifiees'] > 0)
+                            @if(($stats['non_justifiees'] ?? 0) > 0)
                             <div class="absolute px-2 py-1 text-xs text-white bg-red-500 rounded-full -top-2 -right-2 animate-bounce">
                                 {{ $stats['non_justifiees'] }} non just.
                             </div>
@@ -218,12 +234,35 @@
             </div>
         </div>
 
+        <!-- Message de notification pour les justifications -->
+        @if(session('success'))
+        <div class="p-4 mb-6 text-green-700 bg-green-100 border-l-4 border-green-500 rounded-r-lg">
+            <div class="flex items-center">
+                <svg class="w-5 h-5 mr-2 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                {{ session('success') }}
+            </div>
+        </div>
+        @endif
+
+        @if(session('error'))
+        <div class="p-4 mb-6 text-red-700 bg-red-100 border-l-4 border-red-500 rounded-r-lg">
+            <div class="flex items-center">
+                <svg class="w-5 h-5 mr-2 text-red-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+                {{ session('error') }}
+            </div>
+        </div>
+        @endif
+
         <!-- Tableau des absences -->
         <div class="overflow-hidden bg-white border border-gray-100 shadow-xl rounded-2xl">
             <div class="p-6 bg-gradient-to-r from-red-600 to-orange-600">
                 <div class="flex items-center justify-between">
                     <h3 class="text-lg font-semibold text-white">Historique des absences</h3>
-                    <span class="px-4 py-2 text-sm text-white bg-white/20 rounded-full">
+                    <span class="px-4 py-2 text-sm text-white rounded-full bg-white/20">
                         {{ $stats['total'] }} absence(s)
                     </span>
                 </div>
@@ -254,8 +293,8 @@
                                 </td>
                                 <td class="px-6 py-4">
                                     <div class="flex items-center">
-                                        <div class="w-8 h-8 mr-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
-                                            <span class="text-xs font-bold text-white">{{ substr($absence->matiere->nom ?? 'M', 0, 2) }}</span>
+                                        <div class="flex items-center justify-center w-8 h-8 mr-3 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600">
+                                            <span class="text-xs font-bold text-white">{{ $absence->matiere ? substr($absence->matiere->nom, 0, 2) : 'M' }}</span>
                                         </div>
                                         <span>{{ $absence->matiere->nom ?? '-' }}</span>
                                     </div>
@@ -270,15 +309,24 @@
                                         {{ $absence->justifiee ? 'Justifiée' : 'Non justifiée' }}
                                     </span>
                                 </td>
-                                <td class="px-6 py-4 max-w-xs">
+                                <td class="max-w-xs px-6 py-4">
                                     <span class="block truncate" title="{{ $absence->motif ?? 'Aucun motif' }}">
                                         {{ $absence->motif ?? '-' }}
                                     </span>
+                                    @if($absence->document_path)
+                                    <a href="{{ route('parent.telecharger-justificatif', $absence->id) }}" 
+                                       class="inline-flex items-center mt-1 text-xs text-blue-600 hover:text-blue-800">
+                                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                                        </svg>
+                                        Voir justificatif
+                                    </a>
+                                    @endif
                                 </td>
                                 <td class="px-6 py-4">
                                     @if(!$absence->justifiee)
                                         <button onclick="showJustificationModal({{ $absence->id }})" 
-                                                class="px-3 py-2 text-xs font-medium text-white bg-gradient-to-r from-green-500 to-green-600 rounded-lg hover:from-green-600 hover:to-green-700">
+                                                class="px-3 py-2 text-xs font-medium text-white rounded-lg bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700">
                                             Justifier
                                         </button>
                                     @else
@@ -339,10 +387,11 @@
 </div>
 
 <!-- Modal de justification -->
-<div id="justificationModal" class="fixed inset-0 z-50 hidden overflow-y-auto">
+<div id="justificationModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
     <div class="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
         <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onclick="hideJustificationModal()"></div>
 
+        <!-- Modal panel -->
         <div class="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
             <form id="justificationForm" method="POST" action="" enctype="multipart/form-data">
                 @csrf
@@ -355,7 +404,7 @@
                             </svg>
                         </div>
                         <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                            <h3 class="text-lg font-medium leading-6 text-gray-900">Justifier une absence</h3>
+                            <h3 class="text-lg font-medium leading-6 text-gray-900" id="modal-title">Justifier une absence</h3>
                             <div class="mt-2">
                                 <p class="text-sm text-gray-500">Veuillez fournir un motif et éventuellement un document justificatif.</p>
                             </div>
@@ -367,6 +416,9 @@
                         <textarea name="motif" rows="3" required
                                   class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500"
                                   placeholder="Expliquez la raison de l'absence..."></textarea>
+                        @error('motif')
+                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                        @enderror
                     </div>
 
                     <div class="mt-4">
@@ -385,14 +437,17 @@
                                 <p class="text-xs text-gray-500">PDF, PNG, JPG jusqu'à 2MB</p>
                             </div>
                         </div>
+                        @error('document')
+                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                        @enderror
                     </div>
                 </div>
 
                 <div class="px-4 py-3 bg-gray-50 sm:px-6 sm:flex sm:flex-row-reverse">
-                    <button type="submit" class="w-full px-4 py-2 text-base font-medium text-white bg-green-600 border border-transparent rounded-md shadow-sm hover:bg-green-700 sm:ml-3 sm:w-auto sm:text-sm">
+                    <button type="submit" class="w-full px-4 py-2 text-base font-medium text-white bg-green-600 border border-transparent rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm">
                         Justifier
                     </button>
-                    <button type="button" onclick="hideJustificationModal()" class="w-full px-4 py-2 mt-3 text-base font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 sm:mt-0 sm:w-auto sm:text-sm">
+                    <button type="button" onclick="hideJustificationModal()" class="w-full px-4 py-2 mt-3 text-base font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:mt-0 sm:w-auto sm:text-sm">
                         Annuler
                     </button>
                 </div>
@@ -416,8 +471,22 @@ function hideJustificationModal() {
     document.body.style.overflow = 'auto';
 }
 
+// Fermer le modal avec la touche Echap
 document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') hideJustificationModal();
+    if (e.key === 'Escape') {
+        hideJustificationModal();
+    }
+});
+
+// Aperçu du nom de fichier sélectionné
+document.querySelector('input[name="document"]')?.addEventListener('change', function(e) {
+    const fileName = e.target.files[0]?.name;
+    if (fileName) {
+        const label = e.target.closest('label').querySelector('span');
+        if (label) {
+            label.textContent = fileName;
+        }
+    }
 });
 </script>
 
